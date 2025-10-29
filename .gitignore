@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtualenv
+venv/
+.venv/
+env/
+ENV/
+build/
+dist/
+
+# VS Code
+.vscode/
+
+# Mac
+.DS_Store
+
+# Local uploads and outputs (do not commit user data)
+uploads/
+output/
+
+# Pyenv
+.python-version
+
+# Logs
+*.log

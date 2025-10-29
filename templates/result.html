@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Kết quả</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+  </head>
+  <body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+      <div class="container">
+        <a class="navbar-brand" href="{{ url_for('index') }}">Generator Word</a>
+      </div>
+    </nav>
+
+    <main class="container">
+      <div class="row justify-content-center">
+        <div class="col-md-9">
+          <div class="card shadow-sm mb-3">
+            <div class="card-body">
+              <h4 class="card-title">Hoàn tất</h4>
+              <p class="card-text">Tải các file đã tạo bên dưới hoặc tải tất cả dưới dạng ZIP.</p>
+
+              <div class="list-group mb-3">
+                {% for f in files %}
+                  <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div class="me-3 text-truncate" style="max-width:60%">{{ f }}</div>
+                    <div class="btn-group">
+                      <button class="btn btn-outline-secondary btn-sm preview-btn" data-filename="{{ f }}">Xem trước</button>
+                      <a class="btn btn-outline-primary btn-sm" href="{{ url_for('download', job_id=job_id, filename=f) }}">Tải</a>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+
+              {% if zip_name %}
+                <a class="btn btn-success" href="{{ url_for('download_all', job_id=job_id) }}">Tải tất cả (ZIP)</a>
+              {% endif %}
+
+              <a class="btn btn-link ms-2" href="{{ url_for('index') }}">Quay lại</a>
+            </div>
+          </div>
+
+          <p class="text-center text-muted small">Các file được lưu tạm trong <code>output/{{ job_id }}/</code> trên máy chủ.</p>
+        </div>
+      </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      // handle preview button clicks
+      document.addEventListener('DOMContentLoaded', function () {
+        const previewButtons = document.querySelectorAll('.preview-btn');
+        const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+        const modalBody = document.querySelector('#previewModal .modal-body');
+
+        previewButtons.forEach(btn => {
+          btn.addEventListener('click', async function () {
+            const filename = this.dataset.filename;
+            modalBody.innerHTML = '<p class="text-muted">Đang tải xem trước...</p>';
+            modal.show();
+            try {
+              const resp = await fetch(`/preview/{{ job_id }}/${encodeURIComponent(filename)}`);
+              if (!resp.ok) {
+                const j = await resp.json().catch(() => ({}));
+                modalBody.innerHTML = `<div class="text-danger">Lỗi: ${j.error || resp.statusText}</div>`;
+                return;
+              }
+              const html = await resp.text();
+              modalBody.innerHTML = html && html.trim() !== '' ? html : '<div class="text-muted">(Không có nội dung để hiển thị)</div>';
+            } catch (err) {
+              modalBody.innerHTML = `<div class="text-danger">Lỗi khi gọi server: ${err}</div>`;
+            }
+          });
+        });
+      });
+    </script>
+
+    <!-- Preview Modal -->
+    <div class="modal fade" id="previewModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Xem trước</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <!-- preview content injected here -->
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+  </html>

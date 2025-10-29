@@ -1,0 +1,12 @@
+/* Small custom styles to complement Bootstrap */
+body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; }
+.card-title { color: #0d6efd; }
+.text-truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.navbar-brand { font-weight: 600; }
+.container { max-width: 960px; }
+
+/* file input tweaks */
+input[type="file"] { background: #fff; }
+
+/* small shadow for cards */
+.card { border-radius: 0.6rem; }
