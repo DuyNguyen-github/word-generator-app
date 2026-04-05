@@ -1,53 +1,133 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="vi">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Kết quả</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
-  </head>
-  <body class="bg-light">
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
-      <div class="container">
-        <a class="navbar-brand" href="{{ url_for('index') }}">Generator Word</a>
-      </div>
-    </nav>
-
-    <main class="container">
-      <div class="row justify-content-center">
-        <div class="col-md-9">
-          <div class="card shadow-sm mb-3">
-            <div class="card-body">
-              <h4 class="card-title">Hoàn tất</h4>
-              <p class="card-text">Tải các file đã tạo bên dưới hoặc tải tất cả dưới dạng ZIP.</p>
-
-              <div class="list-group mb-3">
-                {% for f in files %}
-                  <div class="list-group-item d-flex justify-content-between align-items-center">
-                    <div class="me-3 text-truncate" style="max-width:60%">{{ f }}</div>
-                    <div class="btn-group">
-                      <button class="btn btn-outline-secondary btn-sm preview-btn" data-filename="{{ f }}">Xem trước</button>
-                      <a class="btn btn-outline-primary btn-sm" href="{{ url_for('download', job_id=job_id, filename=f) }}">Tải</a>
-                    </div>
-                  </div>
-                {% endfor %}
-              </div>
-
-              {% if zip_name %}
-                <a class="btn btn-success" href="{{ url_for('download_all', job_id=job_id) }}">Tải tất cả (ZIP)</a>
-              {% endif %}
-
-              <a class="btn btn-link ms-2" href="{{ url_for('index') }}">Quay lại</a>
-            </div>
-          </div>
-
-          <p class="text-center text-muted small">Các file được lưu tạm trong <code>output/{{ job_id }}/</code> trên máy chủ.</p>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Generator - Bước 3: Kết Quả</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📄 Word Document Generator</h1>
+            <p class="subtitle">Kết quả tạo file</p>
         </div>
-      </div>
-    </main>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+        <div class="card">
+            <div class="step-indicator">
+                <div class="step completed">
+                    <span class="step-number">1</span>
+                    <span class="step-label">Upload</span>
+                </div>
+                <div class="step-line"></div>
+                <div class="step completed">
+                    <span class="step-number">2</span>
+                    <span class="step-label">Configure</span>
+                </div>
+                <div class="step-line"></div>
+                <div class="step completed">
+                    <span class="step-number">3</span>
+                    <span class="step-label">Generate</span>
+                </div>
+            </div>
+
+            <h2>✅ Tạo File Thành Công</h2>
+
+            <!-- Summary -->
+            <div class="summary-grid">
+                <div class="summary-item success">
+                    <div class="summary-value">{{ summary.success }}</div>
+                    <div class="summary-label">Thành công</div>
+                </div>
+                <div class="summary-item warning">
+                    <div class="summary-value">{{ summary.skipped }}</div>
+                    <div class="summary-label">Bỏ qua</div>
+                </div>
+                <div class="summary-item error">
+                    <div class="summary-value">{{ summary.error }}</div>
+                    <div class="summary-label">Lỗi</div>
+                </div>
+                <div class="summary-item info">
+                    <div class="summary-value">{{ summary.total }}</div>
+                    <div class="summary-label">Tổng cộng</div>
+                </div>
+            </div>
+
+            <!-- Detailed Results Table -->
+            <div class="section">
+                <h3>📊 Chi tiết từng dòng</h3>
+                <div class="table-responsive">
+                    <table class="table results-table">
+                        <thead>
+                            <tr>
+                                <th>Dòng</th>
+                                <th>Kết quả</th>
+                                <th>File</th>
+                                <th>Ghi chú</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for result in results %}
+                                <tr class="result-{{ result.status }}">
+                                    <td>{{ result.row_idx }}</td>
+                                    <td>
+                                        {% if result.status == 'success' %}
+                                            <span class="badge badge-success">✓ Thành công</span>
+                                        {% elif result.status == 'skipped' %}
+                                            <span class="badge badge-warning">⊘ Bỏ qua</span>
+                                        {% else %}
+                                            <span class="badge badge-error">✗ Lỗi</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ result.filename or '—' }}</td>
+                                    <td>{{ result.message }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Download Files -->
+            {% if files %}
+                <div class="section">
+                    <h3>📥 Tải File</h3>
+                    <p class="info-text">{{ files|length }} file được tạo thành công</p>
+                    <div class="file-list">
+                        {% for filename in files %}
+                            <div class="file-item">
+                                <span class="file-name">📄 {{ filename }}</span>
+                                <a href="{{ url_for('download', job_id=job_id, filename=filename) }}" class="btn btn-small" download>
+                                    ⬇️ Tải
+                                </a>
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <button type="button" id="downloadAllBtn" class="btn btn-success btn-lg" style="margin-top: 20px;">
+                        📦 Tải tất cả (ZIP)
+                    </button>
+                </div>
+            {% endif %}
+
+            <!-- Action Buttons -->
+            <div class="button-group">
+                <a href="{{ url_for('index') }}" class="btn btn-primary">← Tạo file mới</a>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Job ID: <code>{{ job_id }}</code></p>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('downloadAllBtn').addEventListener('click', () => {
+            window.location.href = `{{ url_for('download_all', job_id=job_id) }}`;
+        });
+    </script>
+</body>
+</html>
     <script>
       // handle preview button clicks
       document.addEventListener('DOMContentLoaded', function () {

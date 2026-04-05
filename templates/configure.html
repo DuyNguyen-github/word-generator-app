@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Generator - Bước 2: Configure</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📄 Word Document Generator</h1>
+            <p class="subtitle">Cấu hình mapping placeholder</p>
+        </div>
+
+        <div class="card">
+            <div class="step-indicator">
+                <div class="step completed">
+                    <span class="step-number">1</span>
+                    <span class="step-label">Upload</span>
+                </div>
+                <div class="step-line"></div>
+                <div class="step active">
+                    <span class="step-number">2</span>
+                    <span class="step-label">Configure</span>
+                </div>
+                <div class="step-line"></div>
+                <div class="step">
+                    <span class="step-number">3</span>
+                    <span class="step-label">Generate</span>
+                </div>
+            </div>
+
+            <h2>Bước 2: Cấu Hình</h2>
+
+            <!-- Sheet Selection -->
+            <div class="section">
+                <h3>📊 Chọn Sheet & Hàng Header</h3>
+                <div class="form-group">
+                    <label for="sheet_name">Sheet:</label>
+                    <select id="sheet_name" class="form-input">
+                        {% for sheet in config.excel_sheets %}
+                            <option value="{{ sheet }}" {% if sheet == config.sheet_name %}selected{% endif %}>{{ sheet }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="header_row">Hàng Header:</label>
+                        <input type="number" id="header_row" value="{{ config.header_row }}" min="1" class="form-input" style="max-width: 100px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="data_start_row">Hàng bắt đầu dữ liệu:</label>
+                        <input type="number" id="data_start_row" value="{{ config.data_start_row }}" min="1" class="form-input" style="max-width: 100px;">
+                    </div>
+                </div>
+
+                <button type="button" id="reloadBtn" class="btn btn-secondary">🔄 Tải lại dữ liệu</button>
+            </div>
+
+            <!-- Preview Excel Headers -->
+            <div class="section">
+                <h3>📋 Preview Dữ Liệu Excel (Tổng {{ config.excel_headers|length }} cột)</h3>
+                <p class="info-text">Scroll ngang để xem tất cả cột</p>
+                <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                    <table class="table preview-table">
+                        <thead>
+                            <tr>
+                                {% for header in config.excel_headers %}
+                                    <th>{{ header }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody id="previewTableBody">
+                            {% for row in preview_rows %}
+                                <tr>
+                                    {% for header in config.excel_headers %}
+                                        <td class="preview-data-cell">{{ row.get(header, '') }}</td>
+                                    {% endfor %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Mapping Placeholders to Columns -->
+            <div class="section">
+                <h3>🔗 Mapping Placeholder → Cột Excel</h3>
+                <p class="info-text">Chọn cột Excel tương ứng với mỗi placeholder trong template</p>
+                
+                <div class="table-responsive">
+                    <table class="table mapping-table">
+                        <thead>
+                            <tr>
+                                <th>Placeholder (Word)</th>
+                                <th>Cột (Excel)</th>
+                                <th>Preview</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mappingTableBody">
+                            {% for ph in config.placeholders %}
+                                <tr>
+                                    <td class="placeholder-name">{{ ph.name }}</td>
+                                    <td>
+                                        <select class="form-input mapping-select" data-placeholder="{{ ph.name }}">
+                                            <option value="">-- Chọn --</option>
+                                            {% for col in config.excel_headers %}
+                                                <option value="{{ col }}" {% if ph.column == col %}selected{% endif %}>Cột {{ column_labels[loop.index0] }} - {{ col }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td class="preview-cell" data-preview-placeholder="{{ ph.name }}">
+                                        {% if preview_rows and ph.column %}
+                                            {{ preview_rows[0].get(ph.column, '') }}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if not config.placeholders %}
+                    <div class="alert alert-warning">Template không có placeholder nào.</div>
+                {% endif %}
+            </div>
+
+            <!-- Filename Configuration -->
+            <div class="section">
+                <h3>📁 Cách đặt tên file output</h3>
+                <div class="form-group">
+                    <label for="filename_column">Chọn cột làm tên file (mặc định: row_&lt;số thứ tự&gt;):</label>
+                    <select id="filename_column" class="form-input">
+                        <option value="">-- Không chọn (dùng row_N) --</option>
+                        {% for col in config.excel_headers %}
+                            <option value="{{ col }}" {% if col == config.filename_column %}selected{% endif %}>Cột {{ column_labels[loop.index0] }} - {{ col }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Required Columns & Skip Empty Rows -->
+            <div class="section">
+                <h3>⚙️ Tùy chọn nâng cao</h3>
+                
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        Cột bắt buộc phải có dữ liệu:
+                    </label>
+                    <div id="requiredColumnsContainer">
+                        {% for col in config.excel_headers %}
+                            <label class="checkbox">
+                                <input type="checkbox" class="required-checkbox" value="{{ col }}" 
+                                    {% if col in config.required_columns %}checked{% endif %}>
+                                Cột {{ column_labels[loop.index0] }} - {{ col }}
+                            </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox">
+                        <input type="checkbox" id="skip_empty" {% if config.skip_empty_rows %}checked{% endif %}>
+                        Bỏ qua dòng hoàn toàn trống
+                    </label>
+                </div>
+            </div>
+
+            <!-- Error Messages -->
+            <div id="error" class="alert alert-error" style="display: none;"></div>
+
+            <!-- Action Buttons -->
+            <div class="button-group">
+                <a href="{{ url_for('index') }}" class="btn btn-gray">← Quay lại</a>
+                <button type="button" id="generateBtn" class="btn btn-primary btn-lg">
+                    ➜ Tạo file (Bước 3)
+                </button>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Placeholder phải map hết trước khi tạo file</p>
+        </div>
+    </div>
+
+    <script>
+        const jobId = '{{ job_id }}';
+        let currentConfig = {{ config|tojson }};
+        // Store preview data as JSON
+        const previewRowData = {{ preview_rows[0]|tojson if preview_rows else '{}' }};
+
+        // Reload data when sheet/header_row changes
+        document.getElementById('reloadBtn').addEventListener('click', async () => {
+            const sheetName = document.getElementById('sheet_name').value;
+            const headerRow = parseInt(document.getElementById('header_row').value) || 1;
+            const dataStartRow = parseInt(document.getElementById('data_start_row').value) || 2;
+
+            try {
+                const response = await fetch(`/api/sheets/${jobId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sheet_name: sheetName })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error);
+
+                // Reload page or update dynamically
+                location.reload();
+            } catch (error) {
+                showError(error.message);
+            }
+        });
+
+        // Update preview when mapping changes - THIS IS THE KEY FIX
+        document.querySelectorAll('.mapping-select').forEach(select => {
+            select.addEventListener('change', function() {
+                // Update preview cell with selected column's value
+                const placeholder = this.dataset.placeholder;
+                const selectedColumn = this.value;
+                const previewCell = document.querySelector(`[data-preview-placeholder="${placeholder}"]`);
+                
+                if (previewCell) {
+                    if (selectedColumn && previewRowData && previewRowData[selectedColumn]) {
+                        previewCell.textContent = previewRowData[selectedColumn];
+                    } else if (selectedColumn && previewRowData) {
+                        previewCell.textContent = previewRowData[selectedColumn] || '(không có dữ liệu)';
+                    } else {
+                        previewCell.textContent = '';
+                    }
+                }
+                
+                // Save config
+                saveConfig();
+            });
+        });
+
+        // Handle other config changes
+        document.getElementById('sheet_name').addEventListener('change', saveConfig);
+        document.getElementById('header_row').addEventListener('change', saveConfig);
+        document.getElementById('data_start_row').addEventListener('change', saveConfig);
+        document.getElementById('filename_column').addEventListener('change', saveConfig);
+        document.getElementById('skip_empty').addEventListener('change', saveConfig);
+
+        document.querySelectorAll('.required-checkbox').forEach(cb => {
+            cb.addEventListener('change', saveConfig);
+        });
+
+        // Save config
+        async function saveConfig() {
+            const placeholders = Array.from(document.querySelectorAll('.mapping-select')).map(select => ({
+                name: select.dataset.placeholder,
+                column: select.value
+            }));
+
+            const requiredColumns = Array.from(document.querySelectorAll('.required-checkbox:checked')).map(cb => cb.value);
+
+            const config = {
+                sheet_name: document.getElementById('sheet_name').value,
+                header_row: parseInt(document.getElementById('header_row').value),
+                data_start_row: parseInt(document.getElementById('data_start_row').value),
+                placeholders: placeholders,
+                filename_column: document.getElementById('filename_column').value || null,
+                required_columns: requiredColumns,
+                skip_empty_rows: document.getElementById('skip_empty').checked
+            };
+
+            try {
+                const response = await fetch(`/api/config/${jobId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+                if (!response.ok) throw new Error('Lỗi lưu config');
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        // Generate
+        document.getElementById('generateBtn').addEventListener('click', async () => {
+            const placeholders = Array.from(document.querySelectorAll('.mapping-select')).map(s => ({
+                name: s.dataset.placeholder,
+                column: s.value
+            }));
+
+            const unmapped = placeholders.filter(p => !p.column);
+            if (unmapped.length > 0) {
+                showError(`Placeholder chưa map: ${unmapped.map(p => p.name).join(', ')}`);
+                return;
+            }
+
+            if (placeholders.length === 0) {
+                showError('Template không có placeholder nào');
+                return;
+            }
+
+            document.getElementById('generateBtn').disabled = true;
+            document.getElementById('generateBtn').textContent = '⏳ Đang tạo...';
+
+            try {
+                const response = await fetch(`/api/generate/${jobId}`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+
+                if (!response.ok) throw new Error(data.error);
+
+                // Redirect to result page
+                window.location.href = `/result/${jobId}`;
+            } catch (error) {
+                showError(error.message);
+                document.getElementById('generateBtn').disabled = false;
+                document.getElementById('generateBtn').textContent = '➜ Tạo file (Bước 3)';
+            }
+        });
+
+        function showError(msg) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = msg;
+            errorDiv.style.display = 'block';
+            setTimeout(() => { errorDiv.style.display = 'none'; }, 5000);
+        }
+    </script>
+</body>
+</html>

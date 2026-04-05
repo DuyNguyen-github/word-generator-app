@@ -17,6 +17,108 @@ DEFAULT_COLUMNS_TO_USE = [
 ]
 
 
+def generate_from_mapping(excel_path, template_path, output_folder, mapping, 
+                         sheet_name=None, header_row=1, data_start_row=2,
+                         filename_column=None, required_columns=None, skip_empty_rows=True):
+    """
+    Generate Word files từ Excel với custom mapping.
+    
+    Args:
+        excel_path: đường dẫn Excel file
+        template_path: đường dẫn Word template
+        output_folder: thư mục output
+        mapping: dict {placeholder: excel_column_name}
+        sheet_name: tên sheet (None = sheet active)
+        header_row: hàng header (1-indexed)
+        data_start_row: hàng bắt đầu dữ liệu (1-indexed)
+        filename_column: tên cột dùng để đặt tên file (None = row_<idx>)
+        required_columns: danh sách cột bắt buộc
+        skip_empty_rows: bỏ qua dòng hoàn toàn trống
+    
+    Returns:
+        results: danh sách {"row_idx": int, "status": "success"/"skipped"/"error", 
+                           "message": str, "filename": str (nếu success)}
+    """
+    from excel_utils import read_excel_sheet
+    
+    os.makedirs(output_folder, exist_ok=True)
+    
+    if required_columns is None:
+        required_columns = []
+    
+    # Đọc Excel
+    try:
+        headers, rows = read_excel_sheet(excel_path, sheet_name, header_row, data_start_row)
+    except Exception as e:
+        raise Exception(f"Không thể đọc Excel: {e}")
+    
+    results = []
+    created_files = []
+    
+    for row_idx, row in enumerate(rows, start=data_start_row):
+        result = {
+            'row_idx': row_idx,
+            'status': 'success',
+            'message': '',
+            'filename': None
+        }
+        
+        # Kiểm tra dòng trống
+        if skip_empty_rows and not any(row.get(h, '').strip() for h in headers):
+            result['status'] = 'skipped'
+            result['message'] = 'Dòng trống'
+            results.append(result)
+            continue
+        
+        # Kiểm tra cột bắt buộc
+        missing_required = []
+        for col in required_columns:
+            if not row.get(col, '').strip():
+                missing_required.append(col)
+        
+        if missing_required:
+            result['status'] = 'skipped'
+            result['message'] = f'Thiếu cột bắt buộc: {", ".join(missing_required)}'
+            results.append(result)
+            continue
+        
+        try:
+            # Build data dict từ mapping
+            data_dict = {}
+            for placeholder, excel_column in mapping.items():
+                if excel_column and excel_column in row:
+                    data_dict[placeholder] = row[excel_column]
+                else:
+                    data_dict[placeholder] = ''
+            
+            # Tạo tên file
+            if filename_column and filename_column in row:
+                base_name = row[filename_column].strip()
+            else:
+                base_name = f"row_{row_idx}"
+            
+            safe_name = re.sub(r'[\\/*?:"<>|]', "_", base_name)
+            if not safe_name:
+                safe_name = f"row_{row_idx}"
+            
+            output_path = os.path.join(output_folder, f"{safe_name}.docx")
+            
+            # Generate file
+            fill_template(template_path, output_path, data_dict)
+            
+            created_files.append(output_path)
+            result['filename'] = os.path.basename(output_path)
+            result['message'] = 'Tạo thành công'
+            
+        except Exception as e:
+            result['status'] = 'error'
+            result['message'] = f'Lỗi: {str(e)}'
+        
+        results.append(result)
+    
+    return results, created_files
+
+
 def generate_from_files(excel_file, template_file, output_folder=None, columns_to_use=None):
     """Generate Word files for each row in the Excel file using the given template.
 

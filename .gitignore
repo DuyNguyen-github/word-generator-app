@@ -12,6 +12,7 @@ env/
 ENV/
 build/
 dist/
+word_app/
 
 # VS Code
 .vscode/
@@ -28,3 +29,12 @@ output/
 
 # Logs
 *.log
+
+# Documentation files (local notes)
+BUG_FIXES.md
+COMPLETION_SUMMARY.md
+DEVELOPMENT.md
+MIGRATION.md
+QUICK_REFERENCE.md
+STRUCTURE.md
+create_test_files.py
